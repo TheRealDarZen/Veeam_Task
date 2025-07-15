@@ -25,9 +25,46 @@ def create_tree(path):
     return tree
 
 
-def sync(source_path, replica_path, source_tree, replica_tree, log_path):
+def delete_file_from_replica(path):
     pass
 
+
+def copy_file_to_replica(path_to_file, path_to_destination):
+    pass
+
+
+def copy_dir_to_replica(path_to_dir, path_to_destination):
+    pass
+
+# TODO: Logging
+def sync(source_path, replica_path, source_tree, replica_tree, log_path):
+
+    # Check if any files are missing in replica or have been modified since the last synchronization
+    for child in source_tree.keys():
+
+        if type(source_tree[child]) is str: # type -> file
+            if child in replica_tree.keys(): # file with the same name exists in replica folder
+                if replica_tree[child] != source_tree[child]: # different file hash (different file contents)
+                    delete_file_from_replica(replica_path / child)
+                    copy_file_to_replica(source_path / child, replica_path)
+
+            else: # file with the same name does not exist in replica folder
+                copy_file_to_replica(source_path / child, replica_path)
+
+        elif type(source_tree[child]) is dict: # type -> directory
+            if child in replica_tree.keys(): # directory with the same name exists in replica folder
+                sync(source_path / child, replica_path / child, source_tree[child], replica_tree[child], log_path)
+
+            else: # directory with the same name does not exist in replica folder
+                copy_dir_to_replica(source_path / child, replica_path)
+
+        else: # shouldn't happen
+            raise TypeError("Element is not a file nor a directory.")
+
+    # Check if any files have been deleted since the last synchronization
+    for child in replica_tree.keys():
+        if child not in source_tree.keys():
+            delete_file_from_replica(replica_path / child)
 
 
 def main():
