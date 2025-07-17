@@ -2,6 +2,7 @@ import hashlib
 import sys
 from pathlib import Path
 from time import sleep
+import shutil
 
 LOG_PATH = Path("/")
 
@@ -31,17 +32,28 @@ def delete_file_from_replica(path):
     with open(LOG_PATH, 'w') as log:
         log.write("Deleting " + str(path))
 
+    if path.is_file():
+        path.unlink()
+    elif path.is_dir():
+        path.rmdir()
+    else:
+        raise FileNotFoundError("An entry isn't marked as file nor directory.")
+
 
 def copy_file_to_replica(path_to_file, path_to_destination):
     global LOG_PATH
     with open(LOG_PATH, 'w') as log:
         log.write("Copying file " + str(path_to_file) + " to " + str(path_to_destination))
 
+    shutil.copy2(path_to_file, path_to_destination)
+
 
 def copy_dir_to_replica(path_to_dir, path_to_destination):
     global LOG_PATH
     with open(LOG_PATH, 'w') as log:
         log.write("Copying directory " + str(path_to_dir) + " to " + str(path_to_destination))
+
+    shutil.copytree(path_to_dir, path_to_destination)
 
 
 def sync(source_path, replica_path, source_tree, replica_tree):
@@ -53,18 +65,18 @@ def sync(source_path, replica_path, source_tree, replica_tree):
             if child in replica_tree.keys(): # file with the same name exists in replica folder
                 if replica_tree[child] != source_tree[child]: # different file hash (different file contents)
                     delete_file_from_replica(replica_path / child)
-                    copy_file_to_replica(source_path / child, replica_path)
+                    copy_file_to_replica(source_path / child, replica_path / child)
 
 
             else: # file with the same name does not exist in replica folder
-                copy_file_to_replica(source_path / child, replica_path)
+                copy_file_to_replica(source_path / child, replica_path / child)
 
         elif type(source_tree[child]) is dict: # type -> directory
             if child in replica_tree.keys(): # directory with the same name exists in replica folder
                 sync(source_path / child, replica_path / child, source_tree[child], replica_tree[child])
 
             else: # directory with the same name does not exist in replica folder
-                copy_dir_to_replica(source_path / child, replica_path)
+                copy_dir_to_replica(source_path / child, replica_path / child)
 
         else: # shouldn't happen
             raise TypeError("Element is not a file nor a directory.")
