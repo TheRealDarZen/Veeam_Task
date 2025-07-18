@@ -29,31 +29,31 @@ def create_tree(path):
 
 def delete_file_from_replica(path):
     global LOG_PATH
-    with open(LOG_PATH, 'w') as log:
-        log.write("Deleting " + str(path))
+    with open(LOG_PATH, 'a') as log:
+        log.write("Deleting " + str(path) + "\n")
 
     if path.is_file():
         path.unlink()
     elif path.is_dir():
-        path.rmdir()
+        shutil.rmtree(path)
     else:
         raise FileNotFoundError("An entry isn't marked as file nor directory.")
 
 
 def copy_file_to_replica(path_to_file, path_to_destination):
     global LOG_PATH
-    with open(LOG_PATH, 'w') as log:
-        log.write("Copying file " + str(path_to_file) + " to " + str(path_to_destination))
+    with open(LOG_PATH, 'a') as log:
+        log.write("Copying file " + str(path_to_file) + " to " + str(path_to_destination) + "\n")
 
-    shutil.copy2(path_to_file, path_to_destination)
+    shutil.copy2(path_to_file, path_to_destination / path_to_file.name)
 
 
 def copy_dir_to_replica(path_to_dir, path_to_destination):
     global LOG_PATH
-    with open(LOG_PATH, 'w') as log:
-        log.write("Copying directory " + str(path_to_dir) + " to " + str(path_to_destination))
+    with open(LOG_PATH, 'a') as log:
+        log.write("Copying directory " + str(path_to_dir) + " to " + str(path_to_destination) + "\n")
 
-    shutil.copytree(path_to_dir, path_to_destination)
+    shutil.copytree(path_to_dir, path_to_destination / path_to_dir.name)
 
 
 def sync(source_path, replica_path, source_tree, replica_tree):
@@ -65,18 +65,18 @@ def sync(source_path, replica_path, source_tree, replica_tree):
             if child in replica_tree.keys(): # file with the same name exists in replica folder
                 if replica_tree[child] != source_tree[child]: # different file hash (different file contents)
                     delete_file_from_replica(replica_path / child)
-                    copy_file_to_replica(source_path / child, replica_path / child)
+                    copy_file_to_replica(source_path / child, replica_path)
 
 
             else: # file with the same name does not exist in replica folder
-                copy_file_to_replica(source_path / child, replica_path / child)
+                copy_file_to_replica(source_path / child, replica_path)
 
         elif type(source_tree[child]) is dict: # type -> directory
             if child in replica_tree.keys(): # directory with the same name exists in replica folder
                 sync(source_path / child, replica_path / child, source_tree[child], replica_tree[child])
 
             else: # directory with the same name does not exist in replica folder
-                copy_dir_to_replica(source_path / child, replica_path / child)
+                copy_dir_to_replica(source_path / child, replica_path)
 
         else: # shouldn't happen
             raise TypeError("Element is not a file nor a directory.")
@@ -88,19 +88,20 @@ def sync(source_path, replica_path, source_tree, replica_tree):
 
 
 def main():
-    PATH_TO_SOURCE = Path(sys.argv[0])
-    PATH_TO_REPLICA = Path(sys.argv[1])
-    INTERVAL = int(sys.argv[2])
-    AMOUNT_OF_SYNCS = int(sys.argv[3])
-    PATH_TO_LOG_FILE = Path(sys.argv[4])
+    global LOG_PATH
+    PATH_TO_SOURCE = Path(sys.argv[1])
+    PATH_TO_REPLICA = Path(sys.argv[2])
+    INTERVAL = int(sys.argv[3])
+    AMOUNT_OF_SYNCS = int(sys.argv[4])
+    PATH_TO_LOG_FILE = Path(sys.argv[5])
 
     LOG_PATH = PATH_TO_LOG_FILE
 
-    replica_tree = {}
+    replica_tree = create_tree(PATH_TO_REPLICA)
 
     for _ in range(AMOUNT_OF_SYNCS):
         sleep(INTERVAL)
-        source_tree = create_tree(PATH_TO_SOURCE / 'source')
+        source_tree = create_tree(PATH_TO_SOURCE)
         sync(PATH_TO_SOURCE, PATH_TO_REPLICA, source_tree, replica_tree)
         replica_tree = source_tree.copy()
 
