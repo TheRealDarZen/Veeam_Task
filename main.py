@@ -102,8 +102,9 @@ def main():
     for _ in range(AMOUNT_OF_SYNCS):
         sleep(INTERVAL)
         source_tree = create_tree(PATH_TO_SOURCE)
+        replica_tree = create_tree(PATH_TO_REPLICA)
         sync(PATH_TO_SOURCE, PATH_TO_REPLICA, source_tree, replica_tree)
-        replica_tree = source_tree.copy()
+        print("Loop")
 
 
 
